@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#0b0b0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AI 声伴" />
+  <title>AI 声伴</title>
+  <style>
+    :root{
+      --bg:#0b0b0f; --panel:#15151b; --panel2:#1d1d25; --text:#f6f6f7; --muted:#9a9aa6;
+      --line:#2b2b35; --accent:#7c5cff; --accent2:#a992ff; --good:#39d98a; --bad:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif}
+    button,input,textarea,select{font:inherit}
+    .app{max-width:760px;margin:auto;min-height:100dvh;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:16px 4px 10px}
+    .title{font-weight:800;font-size:24px}
+    .sub{color:var(--muted);font-size:13px;margin-top:3px}
+    .pill{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:10px 12px;border-radius:14px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 16px}
+    .char{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;text-align:left;color:var(--text);min-height:118px}
+    .char.active{outline:2px solid var(--accent)}
+    .avatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2a2a34,#3b315f);font-weight:800}
+    .name{font-weight:800;margin-top:10px}
+    .desc{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.35}
+    .chat{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+    .chatHead{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .status{font-size:12px;color:var(--muted)}
+    .msgs{height:46dvh;min-height:320px;overflow:auto;padding:14px;scroll-behavior:smooth}
+    .row{display:flex;margin:10px 0}.row.me{justify-content:flex-end}
+    .bubble{max-width:82%;padding:10px 12px;border-radius:16px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+    .row.bot .bubble{background:var(--panel2)}
+    .row.me .bubble{background:var(--accent)}
+    .composer{border-top:1px solid var(--line);padding:10px;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:end}
+    .iconbtn{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:20px}
+    textarea{resize:none;max-height:120px;min-height:46px;border-radius:14px;border:1px solid var(--line);background:#101016;color:var(--text);padding:12px 13px;outline:none}
+    textarea:focus{border-color:var(--accent)}
+    .send{height:46px;padding:0 16px;border:0;border-radius:14px;background:var(--accent);color:white;font-weight:800}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+    .small{padding:9px 11px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+    .note{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 2px 14px}
+    .badge{font-size:11px;padding:4px 7px;border-radius:999px;background:#1f2a24;color:#8cf0b8;border:1px solid #2b4838}
+    .badge.off{background:#2a2020;color:#ffaaaa;border-color:#513030}
+    .footer{padding:14px 2px 26px;color:var(--muted);font-size:11px;line-height:1.5}
+    .sheet{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center;padding:12px;z-index:9}
+    .sheet.open{display:flex}
+    .card{width:min(720px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:16px;max-height:80dvh;overflow:auto}
+    .field{margin:12px 0}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field input,.field textarea,.field select{width:100%;border-radius:12px;border:1px solid var(--line);background:#101016;color:var(--text);padding:11px}
+    .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+    @media (max-width:430px){.grid{grid-template-columns:1fr 1fr}.msgs{height:44dvh}}
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="top">
+    <div>
+      <div class="title">AI 声伴</div>
+      <div class="sub">免费本地版 · iPhone Safari 可用</div>
+    </div>
+    <button class="pill" id="settingsBtn">设置</button>
+  </div>
+
+  <div class="grid" id="charGrid"></div>
+
+  <div class="toolbar">
+    <button class="small" id="speakToggle">🔊 自动朗读：开</button>
+    <button class="small" id="micBtn">🎙️ 测试麦克风</button>
+    <button class="small" id="clearBtn">🗑️ 清空当前聊天</button>
+    <span id="micBadge" class="badge off">麦克风未授权</span>
+  </div>
+
+  <div class="chat">
+    <div class="chatHead">
+      <div>
+        <strong id="chatName">Jessie</strong>
+        <div class="status" id="chatStatus">本地演示模式</div>
+      </div>
+      <span class="badge">20+ 成人角色</span>
+    </div>
+    <div class="msgs" id="msgs"></div>
+    <form class="composer" id="form">
+      <button type="button" class="iconbtn" id="voiceBtn" aria-label="朗读最近一条回复">🔈</button>
+      <textarea id="input" rows="1" placeholder="输入消息…"></textarea>
+      <button class="send" type="submit">发送</button>
+    </form>
+  </div>
+
+  <div class="note">
+    这版不连接付费 AI，所以一定能打开。聊天回复使用本地角色模板；语音使用 iPhone/Safari 自带的朗读能力。之后如果你想升级成真正 AI 实时语音，再加安全后端即可。
+  </div>
+
+  <div class="footer">
+    数据只保存在当前浏览器的本地存储。删除 Safari 网站数据会清空聊天记录。
+  </div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="card">
+    <h3 style="margin:0 0 8px">角色与设置</h3>
+    <div class="field">
+      <label>当前角色名称</label>
+      <input id="editName" />
+    </div>
+    <div class="field">
+      <label>角色设定</label>
+      <textarea id="editPrompt" rows="5"></textarea>
+    </div>
+    <div class="field">
+      <label>语音</label>
+      <select id="voiceSelect"></select>
+    </div>
+    <div class="actions">
+      <button class="small" id="closeSheet">取消</button>
+      <button class="send" id="saveSettings" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const DEFAULTS = [
+    {id:'jessie', name:'Jessie', icon:'J', prompt:'你是 Jessie，24岁，北美长大的成年人。性格外向、直接、温柔，回复自然、口语化、简短。'},
+    {id:'childhood', name:'青梅竹马', icon:'青', prompt:'你是用户从小认识的青梅竹马，22岁成年人。熟悉、亲近、会开玩笑，回复自然不过度夸张。'},
+    {id:'girlfriend', name:'魅力女友', icon:'魅', prompt:'你是魅力女友，23岁成年人。自信、温柔、有幽默感，表达自然，像真实聊天。'},
+    {id:'classmate', name:'同学', icon:'同', prompt:'你是20岁以上大学同学。轻松、友善、真实，不使用未成年人设定。'}
+  ];
+
+  const state = {
+    chars: JSON.parse(localStorage.getItem('voicechat_chars') || 'null') || DEFAULTS,
+    active: localStorage.getItem('voicechat_active') || 'jessie',
+    speak: localStorage.getItem('voicechat_speak') !== '0',
+    voiceName: localStorage.getItem('voicechat_voice') || ''
+  };
+
+  const $ = id => document.getElementById(id);
+  const grid=$('charGrid'), msgs=$('msgs'), input=$('input'), form=$('form');
+  const chatName=$('chatName'), chatStatus=$('chatStatus'), speakToggle=$('speakToggle');
+  const micBtn=$('micBtn'), micBadge=$('micBadge'), voiceBtn=$('voiceBtn');
+  const sheet=$('sheet'), editName=$('editName'), editPrompt=$('editPrompt'), voiceSelect=$('voiceSelect');
+
+  const key = () => 'voicechat_msgs_'+state.active;
+  const activeChar = () => state.chars.find(c=>c.id===state.active) || state.chars[0];
+  const loadMsgs = () => JSON.parse(localStorage.getItem(key()) || '[]');
+  const saveMsgs = a => localStorage.setItem(key(), JSON.stringify(a.slice(-300)));
+
+  function renderChars(){
+    grid.innerHTML='';
+    state.chars.forEach(c=>{
+      const b=document.createElement('button');
+      b.className='char'+(c.id===state.active?' active':'');
+      b.innerHTML=`<div class="avatar">${c.icon}</div><div class="name">${esc(c.name)}</div><div class="desc">${esc(c.prompt.slice(0,55))}…</div>`;
+      b.addEventListener('click',()=>{state.active=c.id;localStorage.setItem('voicechat_active',c.id);renderAll();});
+      grid.appendChild(b);
+    });
+  }
+
+  function renderMsgs(){
+    const a=loadMsgs(); msgs.innerHTML='';
+    if(!a.length){
+      const hello = {role:'bot', text:greeting(activeChar())};
+      a.push(hello); saveMsgs(a);
+    }
+    a.forEach(m=>{
+      const r=document.createElement('div'); r.className='row '+(m.role==='me'?'me':'bot');
+      const b=document.createElement('div'); b.className='bubble'; b.textContent=m.text; r.appendChild(b); msgs.appendChild(r);
+    });
+    requestAnimationFrame(()=>msgs.scrollTop=msgs.scrollHeight);
+  }
+
+  function greeting(c){
+    const map={
+      jessie:'Hey，我在呢。今天想聊什么？',
+      childhood:'你终于来了，今天过得怎么样？',
+      girlfriend:'来啦。先告诉我你现在心情怎么样。',
+      classmate:'嗨，今天课上怎么样？'
+    };
+    return map[c.id] || '嗨，我在。';
+  }
+
+  function reply(text,c){
+    const t=text.trim();
+    if(!t) return '我在听。';
+    const lower=t.toLowerCase();
+    if(/你好|hi|hello|嗨/.test(lower)) return c.id==='jessie'?'Hey～我在这。': '嗨，怎么啦？';
+    if(/累|困|没睡|疲惫/.test(t)) return '听起来你今天挺累的。先跟我说说，是什么让你最耗精力？';
+    if(/开心|高兴|爽|nice|great/.test(lower)) return '那听起来不错呀。什么事情让你这么开心？';
+    if(/难过|烦|生气|不开心|sad|angry/.test(lower)) return '我在。你可以直接说发生了什么，我会认真听。';
+    if(/吃|饭|饿/.test(t)) return '你吃了吗？别空着肚子太久。你现在最想吃什么？';
+    if(/睡|晚安/.test(t)) return '那就早点休息。把手机放远一点，明天醒来再继续聊。';
+    const variants = {
+      jessie:['Hmm，我懂你的意思。然后呢？','那我想听更多，继续说。','Okay，这个挺有意思的。你当时怎么想的？'],
+      childhood:['你还是老样子哈哈。然后发生什么了？','我懂你。你继续讲，我听着呢。','这件事你应该憋挺久了吧？'],
+      girlfriend:['嗯，我在认真听。你继续。','我会站你这边听完，但也会跟你说真实想法。','所以你现在最在意的是哪一部分？'],
+      classmate:['这个我懂。那你接下来准备怎么做？','确实有点麻烦，不过先别急。','你把细节说一下，我帮你捋一捋。']
+    };
+    const arr=variants[c.id]||variants.classmate;
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+
+  function send(text){
+    const a=loadMsgs(); a.push({role:'me',text}); saveMsgs(a); renderMsgs();
+    setTimeout(()=>{
+      const r=reply(text,activeChar());
+      const b=loadMsgs(); b.push({role:'bot',text:r}); saveMsgs(b); renderMsgs();
+      if(state.speak) speak(r);
+    },350);
+  }
+
+  function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    const voices=speechSynthesis.getVoices();
+    const selected=voices.find(v=>v.name===state.voiceName) || voices.find(v=>/zh|Chinese|Ting|Meijia|Sinji/i.test(v.lang+' '+v.name)) || voices[0];
+    if(selected) u.voice=selected;
+    u.rate=1.0; u.pitch=1.03;
+    speechSynthesis.speak(u);
+  }
+
+  function loadVoices(){
+    const voices=('speechSynthesis' in window)?speechSynthesis.getVoices():[];
+    voiceSelect.innerHTML='';
+    voices.forEach(v=>{
+      const o=document.createElement('option'); o.value=v.name; o.textContent=`${v.name} (${v.lang})`;
+      if(v.name===state.voiceName) o.selected=true;
+      voiceSelect.appendChild(o);
+    });
+  }
+  if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=loadVoices; loadVoices();}
+
+  async function testMic(){
+    if(!navigator.mediaDevices?.getUserMedia){
+      micBadge.textContent='此浏览器不支持麦克风 API'; return;
+    }
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(t=>t.stop());
+      micBadge.textContent='麦克风已授权'; micBadge.classList.remove('off');
+    }catch(e){
+      micBadge.textContent='麦克风未授权'; micBadge.classList.add('off');
+    }
+  }
+
+  function renderAll(){
+    const c=activeChar(); chatName.textContent=c.name; renderChars(); renderMsgs();
+    speakToggle.textContent='🔊 自动朗读：'+(state.speak?'开':'关');
+  }
+
+  form.addEventListener('submit',e=>{e.preventDefault();const t=input.value.trim();if(!t)return;input.value='';send(t);});
+  input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px';});
+  speakToggle.addEventListener('click',()=>{state.speak=!state.speak;localStorage.setItem('voicechat_speak',state.speak?'1':'0');renderAll();});
+  micBtn.addEventListener('click',testMic);
+  voiceBtn.addEventListener('click',()=>{const a=loadMsgs().filter(x=>x.role==='bot');if(a.length)speak(a[a.length-1].text);});
+  $('clearBtn').addEventListener('click',()=>{if(confirm('清空当前角色的聊天记录？')){localStorage.removeItem(key());renderMsgs();}});
+  $('settingsBtn').addEventListener('click',()=>{
+    const c=activeChar(); editName.value=c.name; editPrompt.value=c.prompt; loadVoices(); sheet.classList.add('open');
+  });
+  $('closeSheet').addEventListener('click',()=>sheet.classList.remove('open'));
+  $('saveSettings').addEventListener('click',()=>{
+    const c=activeChar(); c.name=editName.value.trim()||c.name; c.prompt=editPrompt.value.trim()||c.prompt;
+    state.voiceName=voiceSelect.value||state.voiceName;
+    localStorage.setItem('voicechat_chars',JSON.stringify(state.chars));
+    localStorage.setItem('voicechat_voice',state.voiceName);
+    sheet.classList.remove('open');renderAll();
+  });
+  sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.classList.remove('open')});
+
+  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  renderAll();
+})();
+</script>
+</body>
+</html>
